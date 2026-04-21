@@ -42,7 +42,7 @@ export type Invoice = {
 export const invoices: Invoice[] = [
   {
     id: "RT3080",
-    status: "paid",
+    status: "paid" as InvoiceStatus,
     senderAddress: {
       street: "19 Union Terrace",
       city: "London",
@@ -75,7 +75,7 @@ export const invoices: Invoice[] = [
 
   {
     id: "RT3081",
-    status: "pending",
+    status: "pending" as InvoiceStatus,
     senderAddress: {
       street: "88 Baker Street",
       city: "London",
@@ -108,7 +108,7 @@ export const invoices: Invoice[] = [
 
   {
     id: "RT3082",
-    status: "draft",
+    status: "draft" as InvoiceStatus,
     senderAddress: {
       street: "45 King Street",
       city: "Manchester",

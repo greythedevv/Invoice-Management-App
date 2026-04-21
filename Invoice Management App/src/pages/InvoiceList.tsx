@@ -1,12 +1,18 @@
 import { FaAngleDown } from "react-icons/fa";
 import { FaCirclePlus } from "react-icons/fa6";
 import {Sidebar} from "../components/sidebar"
+import { useState } from "react";
+
+
 
 import { InvoiceList} from "../components/InvoiceList";
+import { InvoiceForm } from "../components/InvoiceForm";
+
 
 
 export const InvoiceListPage = () => {
 
+const [isNewInvoiceOpen, setIsNewInvoiceOpen] = useState(false);
 
   return (
     <div className="flex">
@@ -34,7 +40,7 @@ export const InvoiceListPage = () => {
   </button>
 
   {/* Button */}
-  <button className="bg-[#7c5dfa] text-white px-3 py-2 rounded-full flex items-center gap-2">
+  <button className="bg-[#7c5dfa] text-white px-3 py-2 rounded-full flex items-center gap-2 cursor-pointer" onClick={() => setIsNewInvoiceOpen(true)}>
 
     {/* Circle icon container */}
     <span className="bg-white text-[#7c5dfa] rounded-full p-1 flex items-center justify-center">
@@ -44,7 +50,7 @@ export const InvoiceListPage = () => {
     New Invoice
   </button>
 
-</div>
+  </div>
     </div>
 
  {/* invoices  */}
@@ -54,6 +60,10 @@ export const InvoiceListPage = () => {
 
  
 </main>
+<InvoiceForm
+  isOpen={isNewInvoiceOpen}
+  onClose={() => setIsNewInvoiceOpen(false)}
+/>
 
     </div>
   )
