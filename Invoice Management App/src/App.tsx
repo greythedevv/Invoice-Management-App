@@ -11,7 +11,7 @@ function App() {
     <>
     <Routes>
         <Route path="/" element={<InvoiceListPage/>} />
-       <Route path="/invoices/:id" element={<InvoiceDetail />} />
+       <Route path="/invoice/:id" element={<InvoiceDetail />} />
       </Routes>
     </>
   )
