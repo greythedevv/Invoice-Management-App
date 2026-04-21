@@ -45,7 +45,7 @@ export const InvoiceDetail = () => {
   }
 
   return (
-    <div className="flex">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <Sidebar />
 

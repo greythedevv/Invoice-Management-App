@@ -8,7 +8,7 @@ export const Sidebar = ()=>{
     return(
         <div>
              {/* Sidebar */}
-      <aside className="bg-[#373B53] w-20 h-screen flex flex-col justify-between items-stretch py-6">
+      <aside className="fixed bg-[#373B53] w-20 h-screen flex flex-col justify-between  items-stretch py-6">
 
         {/* Top Logo */}
         <div className="w-full flex justify-center">
