@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
+import type { Invoice, InvoiceStatus } from "../data/data";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onAdd: (invoice: Invoice) => void;
 }
 
 type Item = {
@@ -13,80 +15,123 @@ type Item = {
   price: number;
 };
 
-const SIDEBAR_WIDTH = 80;
-
 const styles: Record<string, CSSProperties> = {
   overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100vw",
-    height: "100vh",
-    background: "rgba(0,0,0,0.5)",
-    display: "flex",
-    justifyContent: "flex-start",
-    zIndex: 1000,
+    position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+    background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "flex-start", zIndex: 1000,
   },
   drawer: {
-    width: "616px",
-    height: "100%",
-    background: "#fff",
-    display: "flex",
-    flexDirection: "column",
-    marginLeft: `${SIDEBAR_WIDTH}px`,
+    width: "616px", height: "100%", background: "#fff",
+    display: "flex", flexDirection: "column", marginLeft: "72px",
   },
-  scrollArea: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "56px 56px 0 56px",
-  },
+  scrollArea: { flex: 1, overflowY: "auto", padding: "56px 56px 0 56px" },
   stickyFooter: {
-    flexShrink: 0,
-    background: "#fff",
-    padding: "20px 56px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: "8px",
-    boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+    flexShrink: 0, background: "#fff", padding: "20px 56px",
+    display: "flex", alignItems: "center", justifyContent: "flex-end",
+    gap: "8px", boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
   },
 };
 
 const inputClass =
   "w-full border border-[#DFE3FA] rounded px-4 py-3 text-sm text-[#0C0E16] outline-none focus:border-[#7C5DFA] focus:ring-1 focus:ring-[#7C5DFA] mt-1.5 font-medium";
-
 const labelClass = "block text-xs text-[#7E88C3] font-medium";
 
-export const InvoiceForm = ({ isOpen, onClose }: Props) => {
+// Generate a simple random invoice ID like RT3083
+const generateId = () => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const l1 = letters[Math.floor(Math.random() * 26)];
+  const l2 = letters[Math.floor(Math.random() * 26)];
+  const num = Math.floor(1000 + Math.random() * 9000);
+  return `${l1}${l2}${num}`;
+};
+
+export const InvoiceForm = ({ isOpen, onClose, onAdd }: Props) => {
+  // Sender
+  const [fromStreet, setFromStreet] = useState("");
+  const [fromCity, setFromCity] = useState("");
+  const [fromPost, setFromPost] = useState("");
+  const [fromCountry, setFromCountry] = useState("");
+
+  // Client
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [toStreet, setToStreet] = useState("");
+  const [toCity, setToCity] = useState("");
+  const [toPost, setToPost] = useState("");
+  const [toCountry, setToCountry] = useState("");
+
+  // Meta
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("Net 30 Days");
+  const [description, setDescription] = useState("");
+
+  // Items
   const [items, setItems] = useState<Item[]>([
     { id: "1", name: "", qty: 1, price: 0 },
   ]);
 
   if (!isOpen) return null;
 
-  const addItem = () => {
-    setItems((prev) => [
-      ...prev,
-      { id: Date.now().toString(), name: "", qty: 1, price: 0 },
-    ]);
-  };
+  const addItem = () =>
+    setItems((prev) => [...prev, { id: Date.now().toString(), name: "", qty: 1, price: 0 }]);
 
-  const removeItem = (id: string) => {
+  const removeItem = (id: string) =>
     setItems((prev) => prev.filter((item) => item.id !== id));
+
+  const updateItem = (id: string, field: keyof Item, value: string | number) =>
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+
+  const buildInvoice = (status: InvoiceStatus): Invoice => {
+    const invoiceItems = items.map((item) => ({
+      itemName: item.name,
+      quantity: item.qty,
+      price: item.price,
+      total: item.qty * item.price,
+    }));
+    const grandTotal = invoiceItems.reduce((sum, i) => sum + i.total, 0);
+
+    return {
+      id: generateId(),
+      status,
+      senderAddress: { street: fromStreet, city: fromCity, postcode: fromPost, country: fromCountry },
+      client: {
+        name: clientName,
+        email: clientEmail,
+        address: { street: toStreet, city: toCity, postcode: toPost, country: toCountry },
+      },
+      invoiceDate,
+      paymentTerms,
+      projectDescription: description,
+      items: invoiceItems,
+      grandTotal,
+    };
   };
 
-  const updateItem = (id: string, field: keyof Item, value: string | number) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
+  const handleSaveAndSend = () => {
+    onAdd(buildInvoice("pending"));
+    resetForm();
+  };
+
+  const handleSaveAsDraft = () => {
+    onAdd(buildInvoice("draft"));
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFromStreet(""); setFromCity(""); setFromPost(""); setFromCountry("");
+    setClientName(""); setClientEmail("");
+    setToStreet(""); setToCity(""); setToPost(""); setToCountry("");
+    setInvoiceDate(""); setPaymentTerms("Net 30 Days"); setDescription("");
+    setItems([{ id: "1", name: "", qty: 1, price: 0 }]);
   };
 
   return (
     <div style={styles.overlay}>
       <div style={styles.drawer}>
-        {/* Scrollable content */}
         <div style={styles.scrollArea}>
-          <h2 className="text-2xl font-bold text-[#0C0E16] mb-10">New Invoice</h2>
+          <h2 className="text-2xl font-bold text-[#0C0E16] mb-10" style={{ fontFamily: "Syne, sans-serif" }}>
+            New Invoice
+          </h2>
 
           {/* Bill From */}
           <section className="mb-10">
@@ -94,22 +139,13 @@ export const InvoiceForm = ({ isOpen, onClose }: Props) => {
             <div className="mb-4">
               <label className={labelClass}>
                 Street Address
-                <input type="text" className={inputClass} />
+                <input type="text" className={inputClass} value={fromStreet} onChange={(e) => setFromStreet(e.target.value)} />
               </label>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <label className={labelClass}>
-                City
-                <input type="text" className={inputClass} />
-              </label>
-              <label className={labelClass}>
-                Post Code
-                <input type="text" className={inputClass} />
-              </label>
-              <label className={labelClass}>
-                Country
-                <input type="text" className={inputClass} />
-              </label>
+              <label className={labelClass}>City<input type="text" className={inputClass} value={fromCity} onChange={(e) => setFromCity(e.target.value)} /></label>
+              <label className={labelClass}>Post Code<input type="text" className={inputClass} value={fromPost} onChange={(e) => setFromPost(e.target.value)} /></label>
+              <label className={labelClass}>Country<input type="text" className={inputClass} value={fromCountry} onChange={(e) => setFromCountry(e.target.value)} /></label>
             </div>
           </section>
 
@@ -117,64 +153,38 @@ export const InvoiceForm = ({ isOpen, onClose }: Props) => {
           <section className="mb-10">
             <p className="text-xs font-bold text-[#7C5DFA] mb-6 tracking-wide">Bill To</p>
             <div className="mb-4">
-              <label className={labelClass}>
-                Client's Name
-                <input type="text" className={inputClass} />
-              </label>
+              <label className={labelClass}>Client's Name<input type="text" className={inputClass} value={clientName} onChange={(e) => setClientName(e.target.value)} /></label>
             </div>
             <div className="mb-4">
-              <label className={labelClass}>
-                Client's Email
-                <input
-                  type="email"
-                  className={inputClass}
-                  placeholder="e.g. email@example.com"
-                />
-              </label>
+              <label className={labelClass}>Client's Email<input type="email" className={inputClass} placeholder="e.g. email@example.com" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} /></label>
             </div>
             <div className="mb-4">
-              <label className={labelClass}>
-                Street Address
-                <input type="text" className={inputClass} />
-              </label>
+              <label className={labelClass}>Street Address<input type="text" className={inputClass} value={toStreet} onChange={(e) => setToStreet(e.target.value)} /></label>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <label className={labelClass}>
-                City
-                <input type="text" className={inputClass} />
-              </label>
-              <label className={labelClass}>
-                Post Code
-                <input type="text" className={inputClass} />
-              </label>
-              <label className={labelClass}>
-                Country
-                <input type="text" className={inputClass} />
-              </label>
+              <label className={labelClass}>City<input type="text" className={inputClass} value={toCity} onChange={(e) => setToCity(e.target.value)} /></label>
+              <label className={labelClass}>Post Code<input type="text" className={inputClass} value={toPost} onChange={(e) => setToPost(e.target.value)} /></label>
+              <label className={labelClass}>Country<input type="text" className={inputClass} value={toCountry} onChange={(e) => setToCountry(e.target.value)} /></label>
             </div>
             <div className="grid grid-cols-2 gap-6 mb-4">
               <label className={labelClass}>
                 Invoice Date
-                <input type="date" className={inputClass} />
+                <input type="date" className={inputClass} value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
               </label>
               <label className={labelClass}>
                 Payment Terms
-                <select className={inputClass}>
+                <select className={inputClass} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)}>
                   <option>Net 1 Day</option>
                   <option>Net 7 Days</option>
                   <option>Net 14 Days</option>
-                  <option selected>Net 30 Days</option>
+                  <option>Net 30 Days</option>
                 </select>
               </label>
             </div>
             <div>
               <label className={labelClass}>
                 Project Description
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="e.g. Graphic Design Service"
-                />
+                <input type="text" className={inputClass} placeholder="e.g. Graphic Design Service" value={description} onChange={(e) => setDescription(e.target.value)} />
               </label>
             </div>
           </section>
@@ -182,9 +192,7 @@ export const InvoiceForm = ({ isOpen, onClose }: Props) => {
           {/* Item List */}
           <section className="mb-6">
             <p className="text-lg font-bold text-[#777F98] mb-6">Item List</p>
-
-            {/* Header row */}
-            <div className="grid gap-4 mb-3" style={{ gridTemplateColumns: "1fr 60px 100px 70px 20px" }}>
+            <div className="grid gap-4 mb-3 px-1" style={{ gridTemplateColumns: "1fr 60px 100px 70px 20px" }}>
               <span className="text-xs text-[#7E88C3] font-medium">Item Name</span>
               <span className="text-xs text-[#7E88C3] font-medium">Qty.</span>
               <span className="text-xs text-[#7E88C3] font-medium">Price</span>
@@ -192,53 +200,34 @@ export const InvoiceForm = ({ isOpen, onClose }: Props) => {
               <span />
             </div>
 
-            {/* Item rows */}
             {items.map((item) => (
-              <div
-                key={item.id}
-                className="grid gap-4 mb-4 items-center"
-                style={{ gridTemplateColumns: "1fr 60px 100px 70px 20px" }}
-              >
+              <div key={item.id} className="grid gap-4 mb-4 items-center" style={{ gridTemplateColumns: "1fr 60px 100px 70px 20px" }}>
                 <input
-                  type="text"
-                  value={item.name}
+                  type="text" value={item.name}
                   onChange={(e) => updateItem(item.id, "name", e.target.value)}
                   className="border border-[#DFE3FA] rounded px-3 py-3 text-sm text-[#0C0E16] outline-none focus:border-[#7C5DFA] font-medium"
                 />
                 <input
-                  type="number"
-                  value={item.qty}
-                  min={1}
+                  type="number" value={item.qty} min={1}
                   onChange={(e) => updateItem(item.id, "qty", Number(e.target.value))}
                   className="border border-[#DFE3FA] rounded px-3 py-3 text-sm text-[#0C0E16] outline-none focus:border-[#7C5DFA] font-medium text-center"
                 />
                 <input
-                  type="number"
-                  value={item.price}
-                  min={0}
+                  type="number" value={item.price} min={0}
                   onChange={(e) => updateItem(item.id, "price", Number(e.target.value))}
                   className="border border-[#DFE3FA] rounded px-3 py-3 text-sm text-[#0C0E16] outline-none focus:border-[#7C5DFA] font-medium"
                 />
                 <span className="text-sm font-bold text-[#888EB0]">
                   {(item.qty * item.price).toFixed(2)}
                 </span>
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="text-[#888EB0] hover:text-[#EC5757] transition-colors flex items-center justify-center"
-                  title="Remove item"
-                >
-                  {/* Trash icon */}
+                <button onClick={() => removeItem(item.id)} className="text-[#888EB0] hover:text-[#EC5757] transition-colors">
                   <svg width="13" height="16" viewBox="0 0 13 16" fill="none">
-                    <path
-                      d="M11.583 3H9.5V2.25A2.253 2.253 0 007.25 0h-1.5A2.253 2.253 0 003.5 2.25V3H1.417A1.417 1.417 0 000 4.417v.583c0 .322.261.583.583.583H.792l.767 8.823A1.416 1.416 0 002.97 15.5h7.062a1.415 1.415 0 001.41-1.094L12.208 5.583h.209A.583.583 0 0013 5v-.583A1.417 1.417 0 0011.583 3zM4.667 2.25A1.085 1.085 0 015.75 1.167h1.5A1.085 1.085 0 018.333 2.25V3H4.667V2.25zm6.122 12.082a.25.25 0 01-.247.251H2.97a.25.25 0 01-.248-.251L1.96 5.583h9.08l-.25 8.749z"
-                      fill="currentColor"
-                    />
+                    <path d="M11.583 3H9.5V2.25A2.253 2.253 0 007.25 0h-1.5A2.253 2.253 0 003.5 2.25V3H1.417A1.417 1.417 0 000 4.417v.583c0 .322.261.583.583.583H.792l.767 8.823A1.416 1.416 0 002.97 15.5h7.062a1.415 1.415 0 001.41-1.094L12.208 5.583h.209A.583.583 0 0013 5v-.583A1.417 1.417 0 0011.583 3zM4.667 2.25A1.085 1.085 0 015.75 1.167h1.5A1.085 1.085 0 018.333 2.25V3H4.667V2.25zm6.122 12.082a.25.25 0 01-.247.251H2.97a.25.25 0 01-.248-.251L1.96 5.583h9.08l-.25 8.749z" fill="currentColor" />
                   </svg>
                 </button>
               </div>
             ))}
 
-            {/* Add New Item */}
             <button
               onClick={addItem}
               className="w-full mt-2 py-4 rounded-full bg-[#F9FAFE] text-[#7E88C3] text-sm font-bold hover:bg-[#DFE3FA] transition-colors"
@@ -247,22 +236,18 @@ export const InvoiceForm = ({ isOpen, onClose }: Props) => {
             </button>
           </section>
 
-          {/* Spacer so content doesn't sit right against footer */}
           <div className="h-6" />
         </div>
 
         {/* Sticky footer */}
         <div style={styles.stickyFooter}>
-          <button
-            onClick={onClose}
-            className="px-6 py-4 rounded-full bg-[#F9FAFE] text-[#7E88C3] text-sm font-bold hover:bg-[#DFE3FA] transition-colors"
-          >
+          <button onClick={() => { onClose(); resetForm(); }} className="px-6 py-4 rounded-full bg-[#F9FAFE] text-[#7E88C3] text-sm font-bold hover:bg-[#DFE3FA] transition-colors">
             Discard
           </button>
-          <button className="px-6 py-4 rounded-full bg-[#373B53] text-[#888EB0] text-sm font-bold hover:bg-[#0C0E16] transition-colors">
+          <button onClick={handleSaveAsDraft} className="px-6 py-4 rounded-full bg-[#373B53] text-[#888EB0] text-sm font-bold hover:bg-[#0C0E16] transition-colors">
             Save as Draft
           </button>
-          <button className="px-6 py-4 rounded-full bg-[#7C5DFA] text-white text-sm font-bold hover:bg-[#9277FF] transition-colors">
+          <button onClick={handleSaveAndSend} className="px-6 py-4 rounded-full bg-[#7C5DFA] text-white text-sm font-bold hover:bg-[#9277FF] transition-colors">
             Save &amp; Send
           </button>
         </div>
