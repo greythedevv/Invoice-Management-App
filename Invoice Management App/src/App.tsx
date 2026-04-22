@@ -1,21 +1,19 @@
 import { Route, Routes } from 'react-router-dom'
-import {InvoiceListPage} from "../src/pages/InvoiceList"
+import { InvoiceListPage } from "../src/pages/InvoiceList"
 import './App.css'
 import { InvoiceDetail } from './pages/InvoiceDetail'
-import {InvoiceForm} from "./pages/InvoiceForm"
-
+import { InvoiceForm } from './components/InvoiceForm'
 
 function App() {
-
-
   return (
     <>
-    <Routes>
-        <Route path="/" element={<InvoiceListPage/>} />
-       <Route path="/invoice/:id" element={<InvoiceDetail />} />
-       <Route path='/InvoiceForm' element={<InvoiceForm/>}/>
-
+      <Routes>
+        <Route path="/" element={<InvoiceListPage />} />
+        <Route path="/invoice/:id" element={<InvoiceDetail />} />
       </Routes>
+
+      
+      <InvoiceForm />
     </>
   )
 }
