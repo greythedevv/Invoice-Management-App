@@ -21,7 +21,7 @@ A fully responsive, full-featured Invoice Management Application built with **Re
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/invoice-app.git
+git clone [https://github.com/greythedevvinvoice-app.git](https://github.com/greythedevv/Invoice-Management-App.git)
 cd invoice-app
 
 # Install dependencies
