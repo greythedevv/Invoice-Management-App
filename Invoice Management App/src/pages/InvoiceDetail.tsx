@@ -1,163 +1,271 @@
+import { useState } from "react"
 import { Sidebar } from "../components/sidebar"
 import { useParams, useNavigate } from "react-router-dom"
-import { FaLessThan } from "react-icons/fa6"
+import { FaChevronLeft } from "react-icons/fa"
 import { useInvoices } from "../context/InvoiceContext"
+import { DeleteModal } from "../components/Modal"
 
 export const InvoiceDetail = () => {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { invoices, deleteInvoice, markAsPaid, openEditForm } = useInvoices()
+  const { invoices, deleteInvoice, markAsPaid, openEditForm, isDark } = useInvoices()
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   if (!id) return <p>No invoice ID found</p>
+  const invoice = invoices.find(inv => inv.id === decodeURIComponent(id))
+  if (!invoice) return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh",
+      fontFamily:"Syne,sans-serif", fontSize:18, color:"#888EB0" }}>
+      Invoice not found. <button onClick={() => navigate("/")}
+        style={{ marginLeft:12, color:"#7C5DFA", background:"none", border:"none",
+          cursor:"pointer", fontWeight:700, fontSize:18 }}>Go back</button>
+    </div>
+  )
 
-  const invoice = invoices.find((inv) => inv.id === decodeURIComponent(id))
-  if (!invoice) return <p>Invoice not found</p>
-
-  const handleDelete = () => {
+  const handleConfirmDelete = () => {
     deleteInvoice(invoice.id)
     navigate("/")
   }
 
-  const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
-    paid:    { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-500" },
-    pending: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-500"   },
-    draft:   { bg: "bg-slate-100",  text: "text-slate-500",   dot: "bg-slate-400"   },
+  const txtPrim = isDark ? "var(--text-primary)"   : "#0C0E16"
+  const txtSec  = isDark ? "var(--text-secondary)"  : "#7E88C3"
+  const cardBg  = isDark ? "var(--bg-card)"         : "#fff"
+  const itemBg  = isDark ? "var(--bg-item-row)"     : "#F9FAFE"
+
+  const statusConfig: Record<string, { bg:string; text:string; dot:string }> = {
+    paid:    { bg: isDark ? "rgba(51,214,159,0.1)"  : "#EAFAF4", text:"#33D69F",  dot:"#33D69F"  },
+    pending: { bg: isDark ? "rgba(255,143,0,0.1)"   : "#FFF4E5", text:"#FF8F00",  dot:"#FF8F00"  },
+    draft:   { bg: isDark ? "rgba(223,227,250,0.05)": "#F4F4F8",
+               text: isDark ? "#DFE3FA" : "#373B53", dot: isDark ? "#DFE3FA" : "#373B53" },
   }
-  const status = statusConfig[invoice.status] ?? statusConfig.draft
+  const s = statusConfig[invoice.status] ?? statusConfig.draft
+
+  const btnGhost   = { background: isDark ? "#252945" : "#F4F4F8", color: isDark ? "#DFE3FA" : "#6E7491" }
+  const btnDanger  = { background: isDark ? "rgba(236,87,87,0.15)" : "#FDEAEA", color:"#EC5757" }
+  const btnPrimary = { background:"#7C5DFA", color:"#fff", boxShadow:"0 4px 14px rgba(124,93,250,0.35)" }
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-        .inv-root * { font-family: 'DM Sans', sans-serif; }
-        .inv-root .syne { font-family: 'Syne', sans-serif; }
+        .inv-det * { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+        .inv-det .syne { font-family:'Syne',sans-serif; }
+
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
+          from { opacity:0; transform:translateY(16px); }
+          to   { opacity:1; transform:translateY(0); }
         }
-        .fade-up { animation: fadeUp 0.45s cubic-bezier(.22,.68,0,1.2) both; }
-        .fade-up-1 { animation-delay: 0.05s; }
-        .fade-up-2 { animation-delay: 0.13s; }
-        .inv-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 12px 22px; border-radius: 9999px;
-          font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
-          transition: all 0.18s ease; cursor: pointer; border: none;
+        .fade-up   { animation:fadeUp 0.4s cubic-bezier(.22,.68,0,1.2) both; }
+        .fade-up-1 { animation-delay:0.05s; }
+        .fade-up-2 { animation-delay:0.13s; }
+
+        /* Layout */
+        .inv-det-layout {
+          display:flex; min-height:100vh; overflow-x:hidden;
         }
-        .inv-btn:hover { transform: translateY(-1px); }
-        .inv-btn:active { transform: translateY(0); }
-        .btn-ghost  { background: #F4F4F8; color: #6E7491; }
-        .btn-ghost:hover  { background: #E4E4EF; }
-        .btn-danger { background: #FDEAEA; color: #D9534F; }
-        .btn-danger:hover { background: #FBCFCF; }
-        .btn-primary { background: #7C5DFA; color: #fff; box-shadow: 0 4px 14px rgba(124,93,250,0.35); }
-        .btn-primary:hover { background: #9277FF; box-shadow: 0 6px 18px rgba(124,93,250,0.45); }
-        .item-row:hover { background: rgba(124,93,250,0.04); border-radius: 8px; }
-        .grand-total-card {
-          background: linear-gradient(135deg, #1E2139 0%, #252945 100%);
-          border-radius: 12px; padding: 20px 24px;
+        @media (max-width:767px) {
+          .inv-det-layout { flex-direction:column; }
+        }
+
+        .inv-det-main {
+          flex:1; overflow-y:auto; overflow-x:hidden;
+          padding:40px 24px;
+          transition:background 0.25s;
+        }
+        @media (min-width:640px) { .inv-det-main { padding:56px 48px; } }
+
+        .inv-det-inner { max-width:680px; margin:0 auto; width:100%; }
+
+        /* Buttons */
+        .inv-det-btn {
+          display:inline-flex; align-items:center; gap:6px;
+          padding:12px 20px; border-radius:9999px; font-size:13px; font-weight:600;
+          border:none; cursor:pointer; transition:all 0.18s ease;
+          font-family:'Syne',sans-serif;
+        }
+        .inv-det-btn:hover  { transform:translateY(-1px); opacity:0.88; }
+        .inv-det-btn:active { transform:translateY(0); }
+        .inv-det-btn:focus-visible { outline:2px solid #7C5DFA; outline-offset:3px; }
+
+        /* Status bar */
+        .status-bar {
+          display:flex; justify-content:space-between; align-items:center;
+          border-radius:16px; padding:20px 24px; margin-bottom:16px;
+          flex-wrap:wrap; gap:16px;
+        }
+        .status-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+        /* Meta grid */
+        .meta-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; margin-bottom:40px; }
+        @media (max-width:500px) { .meta-grid { grid-template-columns:1fr 1fr; } }
+
+        /* Items table */
+        .items-tbl-head { display:grid; grid-template-columns:1fr 52px 100px 100px; gap:12px; padding:0 8px; margin-bottom:12px; }
+        .items-tbl-row  { display:grid; grid-template-columns:1fr 52px 100px 100px; gap:12px; padding:8px; border-radius:8px; transition:background 0.15s; }
+        .items-tbl-row:hover { background:rgba(124,93,250,0.05); }
+        @media (max-width:460px) {
+          .items-tbl-head { grid-template-columns:1fr 36px 80px 80px; gap:8px; }
+          .items-tbl-row  { grid-template-columns:1fr 36px 80px 80px; gap:8px; }
         }
       `}</style>
 
-      <div className="inv-root flex h-screen bg-[#F8F8FB]">
+      {showDeleteModal && (
+        <DeleteModal
+          invoiceId={invoice.id}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      <div className="inv-det inv-det-layout" style={{ background:"var(--bg-page)" }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto px-6 py-10">
-          <div className="max-w-2xl mx-auto">
+
+        <main className="inv-det-main" id="main-content">
+          <div className="inv-det-inner">
 
             {/* Back */}
-            <button onClick={() => navigate(-1)}
-              className="fade-up flex items-center gap-2.5 mb-8 text-sm font-semibold text-[#0C0E16] hover:text-[#7C5DFA] transition-colors syne">
-              <FaLessThan size={10} /> Go back
+            <button
+              className="fade-up"
+              onClick={() => navigate(-1)}
+              aria-label="Go back to invoice list"
+              style={{
+                display:"flex", alignItems:"center", gap:10, marginBottom:32,
+                background:"none", border:"none", cursor:"pointer",
+                fontSize:14, fontWeight:700, color:txtPrim,
+                fontFamily:"Syne,sans-serif", padding:0,
+              }}
+            >
+              <FaChevronLeft size={10} color="#7C5DFA" aria-hidden="true" />
+              Go back
             </button>
 
-            {/* Status Bar */}
-            <div className="fade-up fade-up-1 flex justify-between items-center bg-white rounded-2xl px-6 py-5 shadow-sm mb-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-[#888EB0]">Status</span>
-                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ${status.bg} ${status.text}`}>
-                  <span className={`w-2 h-2 rounded-full ${status.dot}`} />
+            {/* Status bar */}
+            <div className="status-bar fade-up fade-up-1"
+              style={{ background:cardBg, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                <span style={{ fontSize:13, color:txtSec }}>Status</span>
+                <span
+                  role="status"
+                  aria-label={`Invoice status: ${invoice.status}`}
+                  style={{
+                    display:"inline-flex", alignItems:"center", gap:8,
+                    padding:"6px 16px", borderRadius:9999, fontSize:13, fontWeight:700,
+                    background:s.bg, color:s.text,
+                  }}
+                >
+                  <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:s.dot, display:"inline-block" }} />
                   {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="inv-btn btn-ghost" onClick={() => openEditForm(invoice)}>Edit</button>
-                <button className="inv-btn btn-danger" onClick={handleDelete}>Delete</button>
+
+              <div className="status-actions">
+                <button className="inv-det-btn" style={btnGhost}
+                  onClick={() => openEditForm(invoice)}
+                  aria-label={`Edit invoice ${invoice.id}`}>
+                  Edit
+                </button>
+                <button className="inv-det-btn" style={btnDanger}
+                  onClick={() => setShowDeleteModal(true)}
+                  aria-label={`Delete invoice ${invoice.id}`}>
+                  Delete
+                </button>
                 {invoice.status !== "paid" && (
-                  <button className="inv-btn btn-primary" onClick={() => markAsPaid(invoice.id)}>Mark as Paid</button>
+                  <button className="inv-det-btn" style={btnPrimary}
+                    onClick={() => markAsPaid(invoice.id)}
+                    aria-label={`Mark invoice ${invoice.id} as paid`}>
+                    Mark as Paid
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* Main Card */}
-            <div className="fade-up fade-up-2 bg-white rounded-2xl p-8 shadow-sm">
-              <div className="flex justify-between items-start mb-10">
+            {/* Main card */}
+            <article className="fade-up fade-up-2"
+              aria-label={`Invoice ${invoice.id} details`}
+              style={{
+                background:cardBg, borderRadius:16,
+                padding:"32px 24px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
+              }}>
+
+              {/* ID + sender */}
+              <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:32 }}>
                 <div>
-                  <p className="text-lg font-bold text-[#0C0E16] syne tracking-tight">
-                    <span className="text-[#7C5DFA]">#</span>{invoice.id}
+                  <p className="syne" style={{ fontWeight:800, fontSize:16, color:txtPrim, margin:0 }}>
+                    <span style={{ color:"#7C5DFA" }} aria-hidden="true">#</span>
+                    <span aria-label={`Invoice ID: ${invoice.id}`}>{invoice.id}</span>
                   </p>
-                  <p className="text-sm text-[#888EB0] mt-1">{invoice.projectDescription}</p>
+                  <p style={{ fontSize:13, color:txtSec, marginTop:4, margin:"4px 0 0" }}>{invoice.projectDescription}</p>
                 </div>
-                <div className="text-right text-sm text-[#7E88C3] leading-6">
-                  <p>{invoice.senderAddress.street}</p>
-                  <p>{invoice.senderAddress.city}</p>
-                  <p>{invoice.senderAddress.postcode}</p>
-                  <p>{invoice.senderAddress.country}</p>
-                </div>
+                <address style={{ textAlign:"right", fontSize:13, color:txtSec, lineHeight:1.8, fontStyle:"normal" }}>
+                  <p style={{margin:0}}>{invoice.senderAddress.street}</p>
+                  <p style={{margin:0}}>{invoice.senderAddress.city}</p>
+                  <p style={{margin:0}}>{invoice.senderAddress.postcode}</p>
+                  <p style={{margin:0}}>{invoice.senderAddress.country}</p>
+                </address>
               </div>
 
-              <div className="grid grid-cols-3 gap-8 mb-10">
+              {/* Meta */}
+              <div className="meta-grid">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#888EB0] mb-2">Invoice Date</p>
-                  <p className="font-semibold text-[#0C0E16] syne">{invoice.invoiceDate}</p>
-                  <p className="text-xs uppercase tracking-widest text-[#888EB0] mt-6 mb-2">Payment Due</p>
-                  <p className="font-semibold text-[#0C0E16] syne">{invoice.paymentTerms}</p>
+                  <p style={{ fontSize:11, textTransform:"uppercase", letterSpacing:2, color:txtSec, margin:"0 0 8px" }}>Invoice Date</p>
+                  <p className="syne" style={{ fontWeight:700, color:txtPrim, margin:0 }}>{invoice.invoiceDate}</p>
+                  <p style={{ fontSize:11, textTransform:"uppercase", letterSpacing:2, color:txtSec, margin:"20px 0 8px" }}>Payment Due</p>
+                  <p className="syne" style={{ fontWeight:700, color:txtPrim, margin:0 }}>{invoice.paymentTerms}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#888EB0] mb-2">Bill To</p>
-                  <p className="font-semibold text-[#0C0E16] syne mb-1">{invoice.client.name}</p>
-                  <p className="text-sm text-[#7E88C3] leading-6">
-                    {invoice.client.address.street}<br />
-                    {invoice.client.address.city}<br />
-                    {invoice.client.address.postcode}<br />
+                  <p style={{ fontSize:11, textTransform:"uppercase", letterSpacing:2, color:txtSec, margin:"0 0 8px" }}>Bill To</p>
+                  <p className="syne" style={{ fontWeight:700, color:txtPrim, margin:"0 0 6px" }}>{invoice.client.name}</p>
+                  <address style={{ fontSize:13, color:txtSec, lineHeight:1.8, fontStyle:"normal", margin:0 }}>
+                    {invoice.client.address.street}<br/>
+                    {invoice.client.address.city}<br/>
+                    {invoice.client.address.postcode}<br/>
                     {invoice.client.address.country}
-                  </p>
+                  </address>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#888EB0] mb-2">Sent To</p>
-                  <p className="font-semibold text-[#0C0E16] syne break-all">{invoice.client.email}</p>
+                  <p style={{ fontSize:11, textTransform:"uppercase", letterSpacing:2, color:txtSec, margin:"0 0 8px" }}>Sent To</p>
+                  <a href={`mailto:${invoice.client.email}`} className="syne"
+                    style={{ fontWeight:700, color:txtPrim, wordBreak:"break-all", textDecoration:"none" }}>
+                    {invoice.client.email}
+                  </a>
                 </div>
               </div>
 
-              {/* Items */}
-              <div className="bg-[#F9FAFE] rounded-2xl overflow-hidden">
-                <div className="px-6 pt-6 pb-4">
-                  <div className="grid text-xs uppercase tracking-widest text-[#888EB0] mb-4 px-2"
-                    style={{ gridTemplateColumns: "1fr 60px 100px 100px" }}>
-                    <span>Item Name</span>
-                    <span className="text-center">Qty.</span>
-                    <span className="text-right">Price</span>
-                    <span className="text-right">Total</span>
-                  </div>
-                  <div className="space-y-1">
+              {/* Items table */}
+              <section aria-label="Invoice items">
+                <div style={{ background:itemBg, borderRadius:16, overflow:"hidden" }}>
+                  <div style={{ padding:"24px 24px 16px" }}>
+                    <div className="items-tbl-head" role="row">
+                      {["Item Name","Qty.","Price","Total"].map(h => (
+                        <span key={h} role="columnheader"
+                          style={{ fontSize:11, textTransform:"uppercase", letterSpacing:1, color:txtSec, fontWeight:500 }}>
+                          {h}
+                        </span>
+                      ))}
+                    </div>
                     {invoice.items.map((item, i) => (
-                      <div key={i} className="item-row grid items-center py-3 px-2 transition-colors"
-                        style={{ gridTemplateColumns: "1fr 60px 100px 100px" }}>
-                        <span className="font-semibold text-sm text-[#0C0E16] syne">{item.itemName}</span>
-                        <span className="text-center text-sm text-[#888EB0] font-medium">{item.quantity}</span>
-                        <span className="text-right text-sm text-[#888EB0]">£ {Number(item.price).toFixed(2)}</span>
-                        <span className="text-right text-sm font-bold text-[#0C0E16]">£ {Number(item.total).toFixed(2)}</span>
+                      <div key={i} className="items-tbl-row" role="row">
+                        <span className="syne" role="cell" style={{ fontWeight:700, fontSize:13, color:txtPrim }}>{item.itemName}</span>
+                        <span role="cell" style={{ fontSize:13, color:txtSec, textAlign:"center" }}>{item.quantity}</span>
+                        <span role="cell" style={{ fontSize:13, color:txtSec, textAlign:"right" }}>£ {Number(item.price).toFixed(2)}</span>
+                        <span className="syne" role="cell" style={{ fontWeight:700, fontSize:13, color:txtPrim, textAlign:"right" }}>
+                          £ {Number(item.total).toFixed(2)}
+                        </span>
                       </div>
                     ))}
                   </div>
+                  <div style={{
+                    background:`linear-gradient(135deg, var(--total-bg1) 0%, var(--total-bg2) 100%)`,
+                    padding:"20px 24px", display:"flex", justifyContent:"space-between", alignItems:"center",
+                  }}>
+                    <span style={{ fontSize:13, color:"#DFE3FA" }}>Amount Due</span>
+                    <span className="syne" style={{ fontWeight:800, fontSize:24, color:"#fff" }}>
+                      £ {Number(invoice.grandTotal).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="grand-total-card flex justify-between items-center">
-                  <span className="text-sm text-[#DFE3FA]">Amount Due</span>
-                  <span className="text-2xl font-bold text-white syne tracking-tight">
-                    £ {Number(invoice.grandTotal).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
+              </section>
+            </article>
 
           </div>
         </main>
